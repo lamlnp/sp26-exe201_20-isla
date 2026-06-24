@@ -14,6 +14,13 @@ import {
   upgradeToCompanion,
   waitForProfile,
 } from "@/lib/islamind-auth";
+import type { MoodCheckin, MoodCheckinValues } from "@/lib/mood";
+import {
+  createMoodCheckin,
+  deleteMoodCheckin,
+  listMoodCheckins,
+  updateMoodCheckin,
+} from "@/lib/mood";
 import type { Screen } from "@/lib/islamind-types";
 import { BottomNav } from "@/components/islamind/BottomNav";
 import { LandingScreen } from "@/components/islamind/screens/LandingScreen";
@@ -63,11 +70,30 @@ export default function IslaMindApp() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [moodCheckins, setMoodCheckins] = useState<MoodCheckin[]>([]);
+  const [moodLoading, setMoodLoading] = useState(false);
+  const [moodError, setMoodError] = useState<string | null>(null);
 
   const refreshProfile = useCallback(async (userId: string) => {
     const nextProfile = await loadProfile(userId);
     setProfile(nextProfile);
     return nextProfile;
+  }, []);
+
+  const refreshMoodCheckins = useCallback(async (userId: string) => {
+    setMoodLoading(true);
+    setMoodError(null);
+
+    try {
+      const nextCheckins = await listMoodCheckins(userId);
+      setMoodCheckins(nextCheckins);
+      return nextCheckins;
+    } catch (error) {
+      setMoodError(getErrorMessage(error));
+      throw error;
+    } finally {
+      setMoodLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -82,6 +108,7 @@ export default function IslaMindApp() {
         setSession(currentSession);
         if (currentSession) {
           const nextProfile = await refreshProfile(currentSession.user.id);
+          await refreshMoodCheckins(currentSession.user.id);
           if (!active) return;
           setScreen((current) =>
             PUBLIC_SCREENS.includes(current)
@@ -102,12 +129,15 @@ export default function IslaMindApp() {
       setSession(nextSession);
       if (!nextSession) {
         setProfile(null);
+        setMoodCheckins([]);
+        setMoodError(null);
         setScreen("landing");
         return;
       }
 
       try {
         const nextProfile = await refreshProfile(nextSession.user.id);
+        await refreshMoodCheckins(nextSession.user.id);
         setScreen((current) =>
           PUBLIC_SCREENS.includes(current) ? nextScreenForProfile(nextProfile) : current
         );
@@ -120,7 +150,7 @@ export default function IslaMindApp() {
       active = false;
       subscription.unsubscribe();
     };
-  }, [refreshProfile]);
+  }, [refreshMoodCheckins, refreshProfile]);
 
   useEffect(() => {
     if (!authLoading && !session && PRIVATE_SCREENS.includes(screen)) {
@@ -145,6 +175,7 @@ export default function IslaMindApp() {
 
     setSession(nextSession);
     const nextProfile = await refreshProfile(nextSession.user.id);
+    await refreshMoodCheckins(nextSession.user.id);
     setScreen(nextScreenForProfile(nextProfile));
   }
 
@@ -158,6 +189,7 @@ export default function IslaMindApp() {
     setSession(nextSession);
     const nextProfile = await waitForProfile(nextSession.user.id);
     setProfile(nextProfile);
+    setMoodCheckins([]);
     setScreen("onboarding");
   }
 
@@ -173,6 +205,7 @@ export default function IslaMindApp() {
       onboarding_completed: true,
     });
     setProfile(nextProfile);
+    await refreshMoodCheckins(session.user.id);
     setScreen("dashboard");
   }
 
@@ -181,6 +214,8 @@ export default function IslaMindApp() {
     await signOut();
     setSession(null);
     setProfile(null);
+    setMoodCheckins([]);
+    setMoodError(null);
     setScreen("landing");
   }
 
@@ -188,6 +223,28 @@ export default function IslaMindApp() {
     if (!session) throw new Error("Please sign in before upgrading.");
     await upgradeToCompanion();
     await refreshProfile(session.user.id);
+  }
+
+  async function handleCreateMoodCheckin(values: MoodCheckinValues) {
+    if (!session) throw new Error("Please sign in before saving mood.");
+    setMoodError(null);
+    await createMoodCheckin(session.user.id, values);
+    await refreshMoodCheckins(session.user.id);
+    setScreen("dashboard");
+  }
+
+  async function handleUpdateMoodCheckin(id: string, values: MoodCheckinValues) {
+    if (!session) throw new Error("Please sign in before updating mood.");
+    setMoodError(null);
+    await updateMoodCheckin(id, session.user.id, values);
+    await refreshMoodCheckins(session.user.id);
+  }
+
+  async function handleDeleteMoodCheckin(id: string) {
+    if (!session) throw new Error("Please sign in before deleting mood.");
+    setMoodError(null);
+    await deleteMoodCheckin(id, session.user.id);
+    await refreshMoodCheckins(session.user.id);
   }
 
   const showNav = APP_SCREENS.includes(screen);
@@ -223,10 +280,30 @@ export default function IslaMindApp() {
                 />
               )}
               {screen === "dashboard" && (
-                <DashboardScreen navigate={navigate} profile={profile} />
+                <DashboardScreen
+                  navigate={navigate}
+                  profile={profile}
+                  moodCheckins={moodCheckins}
+                  moodLoading={moodLoading}
+                  moodError={moodError}
+                />
               )}
-              {screen === "mood-checkin" && <MoodCheckinScreen navigate={navigate} />}
-              {screen === "mood-history" && <MoodHistoryScreen navigate={navigate} />}
+              {screen === "mood-checkin" && (
+                <MoodCheckinScreen
+                  navigate={navigate}
+                  onSave={handleCreateMoodCheckin}
+                />
+              )}
+              {screen === "mood-history" && (
+                <MoodHistoryScreen
+                  navigate={navigate}
+                  moodCheckins={moodCheckins}
+                  moodLoading={moodLoading}
+                  moodError={moodError}
+                  onUpdate={handleUpdateMoodCheckin}
+                  onDelete={handleDeleteMoodCheckin}
+                />
+              )}
               {screen === "journal-list" && <JournalListScreen navigate={navigate} />}
               {screen === "journal-editor" && <JournalEditorScreen navigate={navigate} />}
               {screen === "ai-reflection" && <AIReflectionScreen navigate={navigate} />}

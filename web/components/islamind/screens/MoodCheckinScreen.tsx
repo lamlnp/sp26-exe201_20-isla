@@ -3,27 +3,29 @@
 import { useState } from "react";
 import { ArrowLeft, ChevronRight } from "lucide-react";
 import type { NavigateProps } from "@/lib/islamind-types";
+import type { MoodCheckinValues } from "@/lib/mood";
+import {
+  MOOD_EMOJIS,
+  MOOD_EMOTIONS,
+  MOOD_LABELS,
+  MOOD_TAGS,
+} from "@/lib/mood";
 
-const emotions = [
-  "😊 Happy", "😌 Calm", "😟 Anxious", "😔 Sad",
-  "😤 Frustrated", "😴 Tired", "🤩 Excited", "😐 Neutral",
-  "🥺 Overwhelmed", "💪 Motivated",
-];
-const tags = [
-  "Study stress", "Social anxiety", "Sleep issues", "Relationship",
-  "Health", "Family", "Work/intern", "Self-doubt", "Physical activity", "Good news",
-];
-const moodEmojis = ["😭", "😢", "😟", "😕", "😐", "🙂", "😊", "😁", "🤩", "🥳"];
-const moodLabels = [
-  "Very bad", "Bad", "Low", "A bit low", "Okay",
-  "Good", "Pretty good", "Great", "Excellent", "Amazing",
-];
+interface MoodCheckinScreenProps extends NavigateProps {
+  onSave: (values: MoodCheckinValues) => Promise<void>;
+}
 
-export function MoodCheckinScreen({ navigate }: NavigateProps) {
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : "Unable to save check-in.";
+}
+
+export function MoodCheckinScreen({ navigate, onSave }: MoodCheckinScreenProps) {
   const [mood, setMood] = useState(6);
   const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [note, setNote] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fillPct = ((mood - 1) / 9) * 100;
 
@@ -37,6 +39,24 @@ export function MoodCheckinScreen({ navigate }: NavigateProps) {
     setSelectedTags((prev) =>
       prev.includes(t) ? prev.filter((x) => x !== t) : [...prev, t]
     );
+  }
+
+  async function handleSave() {
+    setError(null);
+    setIsSaving(true);
+
+    try {
+      await onSave({
+        mood_score: mood,
+        emotions: selectedEmotions,
+        tags: selectedTags,
+        note: note.trim() || null,
+      });
+    } catch (saveError) {
+      setError(getErrorMessage(saveError));
+    } finally {
+      setIsSaving(false);
+    }
   }
 
   return (
@@ -67,9 +87,9 @@ export function MoodCheckinScreen({ navigate }: NavigateProps) {
             <span
               style={{ fontSize: 56 }}
               role="img"
-              aria-label={moodLabels[mood - 1]}
+              aria-label={MOOD_LABELS[mood - 1]}
             >
-              {moodEmojis[mood - 1]}
+              {MOOD_EMOJIS[mood - 1]}
             </span>
             <div className="flex items-baseline gap-1 mt-2">
               <span className="text-primary font-bold" style={{ fontSize: 36 }}>
@@ -78,7 +98,7 @@ export function MoodCheckinScreen({ navigate }: NavigateProps) {
               <span className="text-muted-foreground text-base">/ 10</span>
             </div>
             <span className="text-muted-foreground mt-1 text-sm">
-              {moodLabels[mood - 1]}
+              {MOOD_LABELS[mood - 1]}
             </span>
           </div>
 
@@ -103,6 +123,25 @@ export function MoodCheckinScreen({ navigate }: NavigateProps) {
               <span className="text-muted-foreground text-[11px]">1</span>
               <span className="text-muted-foreground text-[11px]">10</span>
             </div>
+            <div className="mt-3 grid grid-cols-10 gap-1" role="group" aria-label="Set mood score">
+              {Array.from({ length: 10 }, (_, index) => index + 1).map((score) => (
+                <button
+                  key={score}
+                  type="button"
+                  onClick={() => setMood(score)}
+                  aria-pressed={mood === score}
+                  aria-label={`Set mood ${score}`}
+                  className="h-8 rounded-lg border text-[12px] font-semibold transition-colors"
+                  style={{
+                    background: mood === score ? "#2F7D72" : "#fff",
+                    borderColor: mood === score ? "#2F7D72" : "#E5E7EB",
+                    color: mood === score ? "#fff" : "#6B7280",
+                  }}
+                >
+                  {score}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
@@ -112,7 +151,7 @@ export function MoodCheckinScreen({ navigate }: NavigateProps) {
             What emotions are present?
           </p>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Select emotions">
-            {emotions.map((e) => {
+            {MOOD_EMOTIONS.map((e) => {
               const active = selectedEmotions.includes(e);
               return (
                 <button
@@ -142,7 +181,7 @@ export function MoodCheckinScreen({ navigate }: NavigateProps) {
             <span className="text-muted-foreground font-normal">(optional)</span>
           </p>
           <div className="flex flex-wrap gap-2" role="group" aria-label="Select tags">
-            {tags.map((t) => {
+            {MOOD_TAGS.map((t) => {
               const active = selectedTags.includes(t);
               return (
                 <button
@@ -181,11 +220,18 @@ export function MoodCheckinScreen({ navigate }: NavigateProps) {
         </div>
 
         {/* Save */}
+        {error && (
+          <p className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
         <button
-          onClick={() => navigate("dashboard")}
-          className="w-full h-14 rounded-2xl bg-primary text-white flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform font-semibold text-base"
+          onClick={handleSave}
+          disabled={isSaving}
+          className="w-full h-14 rounded-2xl bg-primary text-white flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform font-semibold text-base disabled:opacity-70"
         >
-          Save check-in
+          {isSaving ? "Saving..." : "Save check-in"}
           <ChevronRight size={18} aria-hidden="true" />
         </button>
 

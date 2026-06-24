@@ -14,21 +14,34 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { WEEK_DATA, JOURNAL_ENTRIES } from "@/lib/islamind-mock-data";
+import { JOURNAL_ENTRIES } from "@/lib/islamind-mock-data";
 import type { NavigateProps } from "@/lib/islamind-types";
 import type { Profile } from "@/lib/islamind-auth";
+import type { MoodCheckin } from "@/lib/mood";
+import { getAverageMood, getSevenDayMoodData } from "@/lib/mood";
 
 interface DashboardScreenProps extends NavigateProps {
   profile: Profile | null;
+  moodCheckins: MoodCheckin[];
+  moodLoading: boolean;
+  moodError: string | null;
 }
 
-export function DashboardScreen({ navigate, profile }: DashboardScreenProps) {
+export function DashboardScreen({
+  navigate,
+  profile,
+  moodCheckins,
+  moodLoading,
+  moodError,
+}: DashboardScreenProps) {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
   const recentEntry = JOURNAL_ENTRIES[0];
   const firstName = profile?.display_name?.trim().split(/\s+/)[0] || "there";
+  const weekData = getSevenDayMoodData(moodCheckins);
+  const averageMood = getAverageMood(moodCheckins, 7);
 
   return (
     <main className="min-h-screen bg-background pb-28 font-sans">
@@ -96,63 +109,77 @@ export function DashboardScreen({ navigate, profile }: DashboardScreenProps) {
                 className="text-foreground font-bold"
                 style={{ fontSize: 32, letterSpacing: "-1px" }}
               >
-                7.1
+                {moodLoading ? "--" : averageMood ?? "--"}
               </p>
               <p className="text-muted-foreground text-xs">Avg / 10</p>
             </div>
             <div className="flex-1 h-16">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={WEEK_DATA}>
-                  <Line
-                    type="monotone"
-                    dataKey="mood"
-                    stroke="#2F7D72"
-                    strokeWidth={2.5}
-                    dot={{ fill: "#2F7D72", r: 3, strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: "#F2B880", strokeWidth: 0 }}
-                  />
-                  <Tooltip
-                    cursor={{ stroke: "#E5E7EB", strokeWidth: 1, strokeDasharray: "4 4" }}
-                    content={({ active, payload }) =>
-                      active && payload?.length ? (
-                        <div className="bg-foreground rounded-lg px-3 py-1.5 shadow-md">
-                          <p className="text-white text-[13px] font-semibold">
-                            {payload[0].value}/10
-                          </p>
-                        </div>
-                      ) : null
-                    }
-                  />
-                </LineChart>
-              </ResponsiveContainer>
+              {weekData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={weekData}>
+                    <Line
+                      type="monotone"
+                      dataKey="mood"
+                      stroke="#2F7D72"
+                      strokeWidth={2.5}
+                      dot={{ fill: "#2F7D72", r: 3, strokeWidth: 0 }}
+                      activeDot={{ r: 5, fill: "#F2B880", strokeWidth: 0 }}
+                    />
+                    <Tooltip
+                      cursor={{ stroke: "#E5E7EB", strokeWidth: 1, strokeDasharray: "4 4" }}
+                      content={({ active, payload }) =>
+                        active && payload?.length ? (
+                          <div className="bg-foreground rounded-lg px-3 py-1.5 shadow-md">
+                            <p className="text-white text-[13px] font-semibold">
+                              {payload[0].value}/10
+                            </p>
+                          </div>
+                        ) : null
+                      }
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center rounded-2xl bg-background px-3 text-center">
+                  <p className="text-muted-foreground text-xs">
+                    {moodLoading ? "Loading mood data..." : "No check-ins yet"}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
           {/* Day bars */}
-          <div className="flex gap-2" aria-hidden="true">
-            {WEEK_DATA.map((d) => (
-              <div key={d.day} className="flex-1 text-center">
-                <div
-                  className="w-full rounded-sm mb-1.5"
-                  style={{
-                    height: 4,
-                    background:
-                      d.mood >= 7
-                        ? "#2F7D72"
-                        : d.mood >= 5
-                        ? "#A7C7B7"
-                        : "#F2B880",
-                    opacity: d.day === "Sun" ? 1 : 0.4,
-                  }}
-                />
-                <p
-                  className="text-muted-foreground"
-                  style={{ fontSize: 10, fontWeight: d.day === "Sun" ? 600 : 400 }}
-                >
-                  {d.day}
-                </p>
-              </div>
-            ))}
-          </div>
+          {moodError && (
+            <p className="mb-3 rounded-xl bg-destructive/10 px-3 py-2 text-[13px] text-destructive">
+              {moodError}
+            </p>
+          )}
+          {weekData.length > 0 && (
+            <div className="flex gap-2" aria-hidden="true">
+              {weekData.map((d) => (
+                <div key={d.day} className="flex-1 text-center">
+                  <div
+                    className="w-full rounded-sm mb-1.5"
+                    style={{
+                      height: 4,
+                      background:
+                        d.mood >= 7
+                          ? "#2F7D72"
+                          : d.mood >= 5
+                          ? "#A7C7B7"
+                          : "#F2B880",
+                    }}
+                  />
+                  <p
+                    className="text-muted-foreground"
+                    style={{ fontSize: 10, fontWeight: 500 }}
+                  >
+                    {d.day}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Quick actions */}
