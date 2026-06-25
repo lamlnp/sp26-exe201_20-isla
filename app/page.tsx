@@ -18,6 +18,7 @@ import type { MoodCheckin, MoodCheckinValues } from "@/lib/mood";
 import {
   createMoodCheckin,
   deleteMoodCheckin,
+  getMoodStreak,
   listMoodCheckins,
   updateMoodCheckin,
 } from "@/lib/mood";
@@ -479,6 +480,9 @@ export default function IslaMindApp() {
                   navigate={navigate}
                   session={session}
                   profile={profile}
+                  journalCount={journalEntries.length}
+                  moodCheckinCount={moodCheckins.length}
+                  moodStreak={getMoodStreak(moodCheckins)}
                   onSignOut={handleSignOut}
                 />
               )}

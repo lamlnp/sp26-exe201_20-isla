@@ -36,15 +36,12 @@ const menuItems = [
   },
 ];
 
-const stats = [
-  { v: "23", l: "Journals" },
-  { v: "31", l: "Check-ins" },
-  { v: "14🔥", l: "Day streak" },
-];
-
 interface ProfileScreenProps extends NavigateProps {
   session: Session;
   profile: Profile | null;
+  journalCount: number;
+  moodCheckinCount: number;
+  moodStreak: number;
   onSignOut: () => Promise<void>;
 }
 
@@ -52,6 +49,9 @@ export function ProfileScreen({
   navigate,
   session,
   profile,
+  journalCount,
+  moodCheckinCount,
+  moodStreak,
   onSignOut,
 }: ProfileScreenProps) {
   const [notifications, setNotifications] = useState(true);
@@ -64,6 +64,11 @@ export function ProfileScreen({
   const initial = displayName.charAt(0).toUpperCase();
   const isCompanion = profile?.plan === "companion";
   const genderLabel = getGenderLabel(profile?.gender);
+  const stats = [
+    { v: journalCount.toString(), l: "Journals" },
+    { v: moodCheckinCount.toString(), l: "Check-ins" },
+    { v: moodStreak > 0 ? `${moodStreak}🔥` : "0", l: "Day streak" },
+  ];
 
   async function handleSignOut() {
     setIsSigningOut(true);
