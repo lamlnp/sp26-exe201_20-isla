@@ -4,18 +4,57 @@ import { useState } from "react";
 import { ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { CBT_STEPS } from "@/lib/islamind-mock-data";
 import type { NavigateProps } from "@/lib/islamind-types";
+import type { CbtRecordValues } from "@/lib/cbt";
 
-export function CBTScreen({ navigate }: NavigateProps) {
+interface CBTScreenProps extends NavigateProps {
+  onComplete: (values: CbtRecordValues) => Promise<void>;
+}
+
+export function CBTScreen({ navigate, onComplete }: CBTScreenProps) {
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState<string[]>(Array(CBT_STEPS.length).fill(""));
+  const [moodAfter, setMoodAfter] = useState(6);
   const [done, setDone] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const step = CBT_STEPS[currentStep];
   const progress = (currentStep / (CBT_STEPS.length - 1)) * 100;
+  const isLastStep = Boolean(step.isLast);
+  const fillPct = ((moodAfter - 1) / 9) * 100;
 
-  function handleNext() {
-    if (step.isLast) {
-      setDone(true);
+  function updateAnswer(index: number, value: string) {
+    const updated = [...answers];
+    updated[index] = value;
+    setAnswers(updated);
+  }
+
+  async function handleNext() {
+    if (isLastStep) {
+      setSaving(true);
+      setError(null);
+
+      try {
+        await onComplete({
+          situation: answers[0],
+          emotion: answers[1],
+          automatic_thought: answers[2],
+          evidence_for: answers[3],
+          evidence_against: answers[4],
+          balanced_thought: answers[5],
+          mood_after: moodAfter,
+          after_reframe_note: answers[6],
+        });
+        setDone(true);
+      } catch (saveError) {
+        setError(
+          saveError instanceof Error
+            ? saveError.message
+            : "Unable to save thought record."
+        );
+      } finally {
+        setSaving(false);
+      }
     } else {
       setCurrentStep((s) => s + 1);
     }
@@ -36,7 +75,7 @@ export function CBTScreen({ navigate }: NavigateProps) {
         </h2>
         <p className="text-muted-foreground text-center mb-8 text-[15px] leading-relaxed">
           Great work. Examining your thoughts with curiosity is a real skill — and
-          you just practiced it.
+          your record has been saved.
         </p>
         <div className="w-full bg-card rounded-2xl p-4 border border-border mb-4">
           <p className="text-foreground mb-2 text-[13px] font-semibold">
@@ -49,6 +88,15 @@ export function CBTScreen({ navigate }: NavigateProps) {
             {answers[5] ||
               "This exam result is disappointing, but it doesn't define my intelligence or my semester. I can learn from it."}
             &quot;
+          </p>
+        </div>
+        <div className="w-full bg-card rounded-2xl p-4 border border-border mb-4">
+          <p className="text-foreground mb-2 text-[13px] font-semibold">
+            Mood after reframing
+          </p>
+          <p className="text-muted-foreground text-sm leading-[1.65]">
+            {moodAfter}/10
+            {answers[6].trim() ? ` · ${answers[6].trim()}` : ""}
           </p>
         </div>
         <button
@@ -169,19 +217,59 @@ export function CBTScreen({ navigate }: NavigateProps) {
           <p className="text-muted-foreground mb-4 text-sm leading-[1.65]">
             {step.desc}
           </p>
-          <textarea
-            value={answers[currentStep]}
-            onChange={(e) => {
-              const updated = [...answers];
-              updated[currentStep] = e.target.value;
-              setAnswers(updated);
-            }}
-            placeholder={step.placeholder}
-            rows={5}
-            className="w-full px-4 py-3 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none text-sm leading-relaxed"
-            aria-label={step.title}
-          />
+          {isLastStep ? (
+            <div className="space-y-4">
+              <div>
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-foreground font-semibold text-sm">
+                    Mood after reframing
+                  </p>
+                  <span className="text-primary font-bold text-sm">
+                    {moodAfter}/10
+                  </span>
+                </div>
+                <input
+                  type="range"
+                  min={1}
+                  max={10}
+                  value={moodAfter}
+                  onChange={(event) => setMoodAfter(Number(event.target.value))}
+                  className="isla-range w-full"
+                  style={{
+                    background: `linear-gradient(to right, #2F7D72 0%, #2F7D72 ${fillPct}%, #E5E7EB ${fillPct}%, #E5E7EB 100%)`,
+                  }}
+                  aria-label="Mood after reframing"
+                  aria-valuemin={1}
+                  aria-valuemax={10}
+                  aria-valuenow={moodAfter}
+                />
+              </div>
+              <textarea
+                value={answers[currentStep]}
+                onChange={(e) => updateAnswer(currentStep, e.target.value)}
+                placeholder={step.placeholder}
+                rows={4}
+                className="w-full px-4 py-3 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none text-sm leading-relaxed"
+                aria-label="After reframe note"
+              />
+            </div>
+          ) : (
+            <textarea
+              value={answers[currentStep]}
+              onChange={(e) => updateAnswer(currentStep, e.target.value)}
+              placeholder={step.placeholder}
+              rows={5}
+              className="w-full px-4 py-3 rounded-xl bg-background border border-border text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20 transition-all resize-none text-sm leading-relaxed"
+              aria-label={step.title}
+            />
+          )}
         </div>
+
+        {error && (
+          <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </p>
+        )}
 
         {/* Previous answers (collapsed summary) */}
         {currentStep > 0 && answers[currentStep - 1] && (
@@ -208,11 +296,12 @@ export function CBTScreen({ navigate }: NavigateProps) {
           )}
           <button
             onClick={handleNext}
-            className="flex-1 h-12 rounded-2xl bg-primary text-white flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform font-semibold text-sm"
+            disabled={saving}
+            className="flex-1 h-12 rounded-2xl bg-primary text-white flex items-center justify-center gap-2 shadow-sm active:scale-[0.98] transition-transform font-semibold text-sm disabled:opacity-60"
           >
-            {step.isLast ? "Complete" : "Next"}
-            {!step.isLast && <ArrowRight size={16} aria-hidden="true" />}
-            {step.isLast && <Check size={16} aria-hidden="true" />}
+            {isLastStep ? (saving ? "Saving..." : "Complete") : "Next"}
+            {!isLastStep && <ArrowRight size={16} aria-hidden="true" />}
+            {isLastStep && <Check size={16} aria-hidden="true" />}
           </button>
         </div>
 

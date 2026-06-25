@@ -33,6 +33,7 @@ import type {
   AIQuotaLimitResponse,
   AIReflectionResponse,
 } from "@/lib/ai/reflection";
+import { createCbtRecord, type CbtRecordValues } from "@/lib/cbt";
 import type { Screen } from "@/lib/islamind-types";
 import { BottomNav } from "@/components/islamind/BottomNav";
 import { LandingScreen } from "@/components/islamind/screens/LandingScreen";
@@ -371,6 +372,11 @@ export default function IslaMindApp() {
     }
   }
 
+  async function handleCreateCbtRecord(values: CbtRecordValues) {
+    if (!session) throw new Error("Please sign in before saving CBT record.");
+    await createCbtRecord(session.user.id, values);
+  }
+
   const showNav = APP_SCREENS.includes(screen);
   const selectedJournalEntry =
     journalEntries.find((entry) => entry.id === selectedJournalEntryId) ?? null;
@@ -464,7 +470,9 @@ export default function IslaMindApp() {
                   error={reflectionError}
                 />
               )}
-              {screen === "cbt" && <CBTScreen navigate={navigate} />}
+              {screen === "cbt" && (
+                <CBTScreen navigate={navigate} onComplete={handleCreateCbtRecord} />
+              )}
               {screen === "reflection-card" && <ReflectionCardScreen navigate={navigate} />}
               {screen === "profile" && session && (
                 <ProfileScreen
