@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft, Sparkles, Save } from "lucide-react";
 import type { NavigateProps } from "@/lib/islamind-types";
+import type { JournalEntry, JournalEntryValues } from "@/lib/journal";
+import { formatJournalDate } from "@/lib/journal";
 
 const emotions = [
   "Anxious", "Calm", "Happy", "Sad",
@@ -10,14 +12,35 @@ const emotions = [
 ];
 const tags = ["Study stress", "Social", "Sleep", "Family", "Health", "Personal"];
 
-export function JournalEditorScreen({ navigate }: NavigateProps) {
+interface JournalEditorScreenProps extends NavigateProps {
+  entry: JournalEntry | null;
+  onSave: (values: JournalEntryValues) => Promise<void>;
+}
+
+export function JournalEditorScreen({
+  navigate,
+  entry,
+  onSave,
+}: JournalEditorScreenProps) {
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
   const [mood, setMood] = useState(6);
-  const [selectedEmotions, setSelectedEmotions] = useState<string[]>(["Anxious"]);
-  const [selectedTags, setSelectedTags] = useState<string[]>(["Study stress"]);
+  const [selectedEmotions, setSelectedEmotions] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const fillPct = ((mood - 1) / 9) * 100;
+  const isEditing = Boolean(entry);
+
+  useEffect(() => {
+    setTitle(entry?.title ?? "");
+    setText(entry?.content ?? "");
+    setMood(entry?.mood_score ?? 6);
+    setSelectedEmotions(entry?.emotions ?? []);
+    setSelectedTags(entry?.tags ?? []);
+    setError(null);
+  }, [entry]);
 
   function toggleEmotion(e: string) {
     setSelectedEmotions((prev) =>
@@ -31,6 +54,29 @@ export function JournalEditorScreen({ navigate }: NavigateProps) {
     );
   }
 
+  async function saveEntry() {
+    if (!text.trim()) {
+      setError("Write something before saving.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await onSave({
+        title: title.trim() || null,
+        content: text,
+        mood_score: mood,
+        emotions: selectedEmotions,
+        tags: selectedTags,
+      });
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save entry.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-card pb-8">
       {/* Sticky header */}
@@ -42,10 +88,13 @@ export function JournalEditorScreen({ navigate }: NavigateProps) {
         >
           <ArrowLeft size={18} className="text-foreground" aria-hidden="true" />
         </button>
-        <h1 className="text-foreground font-bold text-base">New Entry</h1>
+        <h1 className="text-foreground font-bold text-base">
+          {isEditing ? "Edit Entry" : "New Entry"}
+        </h1>
         <button
-          onClick={() => navigate("journal-list")}
-          className="w-10 h-10 rounded-full bg-primary hover:bg-primary/90 transition-colors flex items-center justify-center"
+          onClick={saveEntry}
+          disabled={saving}
+          className="w-10 h-10 rounded-full bg-primary hover:bg-primary/90 transition-colors flex items-center justify-center disabled:opacity-60"
           aria-label="Save entry"
         >
           <Save size={16} className="text-white" aria-hidden="true" />
@@ -56,7 +105,7 @@ export function JournalEditorScreen({ navigate }: NavigateProps) {
         {/* Date + mood badge */}
         <div className="flex items-center justify-between">
           <p className="text-muted-foreground text-[13px] font-medium">
-            Thursday, June 11 · 9:14 AM
+            {entry ? formatJournalDate(entry.created_at) : "New journal entry"}
           </p>
           <div className="flex items-center gap-1 px-3 py-1.5 rounded-full bg-secondary">
             <span className="text-primary font-bold text-[13px]">
@@ -157,6 +206,12 @@ export function JournalEditorScreen({ navigate }: NavigateProps) {
           aria-label="Journal entry"
         />
 
+        {error && (
+          <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {error}
+          </p>
+        )}
+
         {/* AI Reflection CTA */}
         <div className="bg-[#F0F9F6] rounded-3xl p-5 border border-secondary">
           <div className="flex items-center gap-3 mb-3">
@@ -178,6 +233,7 @@ export function JournalEditorScreen({ navigate }: NavigateProps) {
           </p>
           <button
             onClick={() => navigate("ai-reflection")}
+            disabled={saving}
             className="w-full h-12 rounded-2xl bg-primary text-white flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors shadow-sm font-semibold text-[15px]"
           >
             <Sparkles size={16} aria-hidden="true" />

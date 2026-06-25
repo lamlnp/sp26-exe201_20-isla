@@ -5,7 +5,6 @@ import {
   ChevronRight,
   Brain,
   BookOpen,
-  Sparkles,
   ClipboardList,
 } from "lucide-react";
 import {
@@ -14,17 +13,28 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { JOURNAL_ENTRIES } from "@/lib/islamind-mock-data";
 import type { NavigateProps } from "@/lib/islamind-types";
 import type { Profile } from "@/lib/islamind-auth";
 import type { MoodCheckin } from "@/lib/mood";
 import { getAverageMood, getSevenDayMoodData } from "@/lib/mood";
+import type { JournalEntry } from "@/lib/journal";
+import {
+  formatJournalDate,
+  getJournalPreview,
+  getJournalTitle,
+  getRecentJournalEntry,
+} from "@/lib/journal";
 
 interface DashboardScreenProps extends NavigateProps {
   profile: Profile | null;
   moodCheckins: MoodCheckin[];
   moodLoading: boolean;
   moodError: string | null;
+  journalEntries: JournalEntry[];
+  journalLoading: boolean;
+  journalError: string | null;
+  onNewJournal: () => void;
+  onOpenJournal: (id: string) => void;
 }
 
 export function DashboardScreen({
@@ -33,12 +43,17 @@ export function DashboardScreen({
   moodCheckins,
   moodLoading,
   moodError,
+  journalEntries,
+  journalLoading,
+  journalError,
+  onNewJournal,
+  onOpenJournal,
 }: DashboardScreenProps) {
   const hour = new Date().getHours();
   const greeting =
     hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 
-  const recentEntry = JOURNAL_ENTRIES[0];
+  const recentEntry = getRecentJournalEntry(journalEntries);
   const firstName = profile?.display_name?.trim().split(/\s+/)[0] || "there";
   const weekData = getSevenDayMoodData(moodCheckins);
   const averageMood = getAverageMood(moodCheckins, 7);
@@ -198,6 +213,7 @@ export function DashboardScreen({
                 color: "#DDEFEA",
                 iconColor: "#2F7D72",
                 screen: "journal-editor" as const,
+                onClick: onNewJournal,
               },
               {
                 icon: ClipboardList,
@@ -205,11 +221,12 @@ export function DashboardScreen({
                 color: "#F7F4ED",
                 iconColor: "#263238",
                 screen: "cbt" as const,
+                onClick: () => navigate("cbt"),
               },
             ].map((a) => (
               <button
                 key={a.label}
-                onClick={() => navigate(a.screen)}
+                onClick={a.onClick}
                 className="bg-card rounded-3xl p-5 border border-border shadow-sm text-left hover:border-[#A7C7B7] transition-colors"
               >
                 <div
@@ -247,35 +264,58 @@ export function DashboardScreen({
               <ChevronRight size={14} aria-hidden="true" />
             </button>
           </div>
-          <button
-            onClick={() => navigate("journal-editor")}
-            className="bg-card rounded-3xl p-5 border border-border shadow-sm w-full text-left hover:border-[#A7C7B7] transition-colors"
-          >
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-muted-foreground text-xs font-medium">
-                {recentEntry.date}
-              </span>
-              <span className="px-2 py-0.5 rounded text-primary bg-secondary text-[11px] font-semibold">
-                Mood {recentEntry.mood}/10
-              </span>
+          {journalError && (
+            <p className="rounded-2xl bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {journalError}
+            </p>
+          )}
+
+          {journalLoading && (
+            <div className="bg-card rounded-3xl p-5 border border-border shadow-sm text-center">
+              <p className="text-muted-foreground text-sm">Loading latest entry...</p>
             </div>
-            <p className="text-foreground mb-2 font-semibold text-base">
-              {recentEntry.title}
-            </p>
-            <p
-              className="text-muted-foreground text-sm leading-relaxed line-clamp-2"
+          )}
+
+          {!journalLoading && recentEntry && (
+            <button
+              onClick={() => onOpenJournal(recentEntry.id)}
+              className="bg-card rounded-3xl p-5 border border-border shadow-sm w-full text-left hover:border-[#A7C7B7] transition-colors"
             >
-              {recentEntry.preview}
-            </p>
-            {recentEntry.hasReflection && (
-              <div className="flex items-center gap-1.5 mt-3">
-                <Sparkles size={13} className="text-primary" aria-hidden="true" />
-                <span className="text-primary text-xs font-medium">
-                  AI reflection available
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-muted-foreground text-xs font-medium">
+                  {formatJournalDate(recentEntry.created_at)}
                 </span>
+                {recentEntry.mood_score && (
+                  <span className="px-2 py-0.5 rounded text-primary bg-secondary text-[11px] font-semibold">
+                    Mood {recentEntry.mood_score}/10
+                  </span>
+                )}
               </div>
-            )}
-          </button>
+              <p className="text-foreground mb-2 font-semibold text-base">
+                {getJournalTitle(recentEntry)}
+              </p>
+              <p className="text-muted-foreground text-sm leading-relaxed line-clamp-2">
+                {getJournalPreview(recentEntry)}
+              </p>
+            </button>
+          )}
+
+          {!journalLoading && !recentEntry && (
+            <div className="bg-card rounded-3xl p-5 border border-border shadow-sm text-center">
+              <p className="text-foreground font-semibold text-base mb-2">
+                No journal entries yet
+              </p>
+              <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+                Capture a thought or moment when you are ready.
+              </p>
+              <button
+                onClick={onNewJournal}
+                className="h-11 rounded-2xl bg-primary px-5 text-white font-semibold text-sm"
+              >
+                New entry
+              </button>
+            </div>
+          )}
         </section>
 
         {/* Reflection card teaser */}

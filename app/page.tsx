@@ -21,6 +21,13 @@ import {
   listMoodCheckins,
   updateMoodCheckin,
 } from "@/lib/mood";
+import type { JournalEntry, JournalEntryValues } from "@/lib/journal";
+import {
+  createJournalEntry,
+  deleteJournalEntry,
+  listJournalEntries,
+  updateJournalEntry,
+} from "@/lib/journal";
 import type { Screen } from "@/lib/islamind-types";
 import { BottomNav } from "@/components/islamind/BottomNav";
 import { LandingScreen } from "@/components/islamind/screens/LandingScreen";
@@ -73,6 +80,12 @@ export default function IslaMindApp() {
   const [moodCheckins, setMoodCheckins] = useState<MoodCheckin[]>([]);
   const [moodLoading, setMoodLoading] = useState(false);
   const [moodError, setMoodError] = useState<string | null>(null);
+  const [journalEntries, setJournalEntries] = useState<JournalEntry[]>([]);
+  const [journalLoading, setJournalLoading] = useState(false);
+  const [journalError, setJournalError] = useState<string | null>(null);
+  const [selectedJournalEntryId, setSelectedJournalEntryId] = useState<string | null>(
+    null
+  );
 
   const refreshProfile = useCallback(async (userId: string) => {
     const nextProfile = await loadProfile(userId);
@@ -96,6 +109,22 @@ export default function IslaMindApp() {
     }
   }, []);
 
+  const refreshJournalEntries = useCallback(async (userId: string) => {
+    setJournalLoading(true);
+    setJournalError(null);
+
+    try {
+      const nextEntries = await listJournalEntries(userId);
+      setJournalEntries(nextEntries);
+      return nextEntries;
+    } catch (error) {
+      setJournalError(getErrorMessage(error));
+      throw error;
+    } finally {
+      setJournalLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     let active = true;
 
@@ -109,6 +138,7 @@ export default function IslaMindApp() {
         if (currentSession) {
           const nextProfile = await refreshProfile(currentSession.user.id);
           await refreshMoodCheckins(currentSession.user.id);
+          await refreshJournalEntries(currentSession.user.id);
           if (!active) return;
           setScreen((current) =>
             PUBLIC_SCREENS.includes(current)
@@ -131,6 +161,9 @@ export default function IslaMindApp() {
         setProfile(null);
         setMoodCheckins([]);
         setMoodError(null);
+        setJournalEntries([]);
+        setJournalError(null);
+        setSelectedJournalEntryId(null);
         setScreen("landing");
         return;
       }
@@ -138,6 +171,7 @@ export default function IslaMindApp() {
       try {
         const nextProfile = await refreshProfile(nextSession.user.id);
         await refreshMoodCheckins(nextSession.user.id);
+        await refreshJournalEntries(nextSession.user.id);
         setScreen((current) =>
           PUBLIC_SCREENS.includes(current) ? nextScreenForProfile(nextProfile) : current
         );
@@ -150,7 +184,7 @@ export default function IslaMindApp() {
       active = false;
       subscription.unsubscribe();
     };
-  }, [refreshMoodCheckins, refreshProfile]);
+  }, [refreshJournalEntries, refreshMoodCheckins, refreshProfile]);
 
   useEffect(() => {
     if (!authLoading && !session && PRIVATE_SCREENS.includes(screen)) {
@@ -176,6 +210,7 @@ export default function IslaMindApp() {
     setSession(nextSession);
     const nextProfile = await refreshProfile(nextSession.user.id);
     await refreshMoodCheckins(nextSession.user.id);
+    await refreshJournalEntries(nextSession.user.id);
     setScreen(nextScreenForProfile(nextProfile));
   }
 
@@ -190,6 +225,8 @@ export default function IslaMindApp() {
     const nextProfile = await waitForProfile(nextSession.user.id);
     setProfile(nextProfile);
     setMoodCheckins([]);
+    setJournalEntries([]);
+    setSelectedJournalEntryId(null);
     setScreen("onboarding");
   }
 
@@ -206,6 +243,7 @@ export default function IslaMindApp() {
     });
     setProfile(nextProfile);
     await refreshMoodCheckins(session.user.id);
+    await refreshJournalEntries(session.user.id);
     setScreen("dashboard");
   }
 
@@ -216,6 +254,9 @@ export default function IslaMindApp() {
     setProfile(null);
     setMoodCheckins([]);
     setMoodError(null);
+    setJournalEntries([]);
+    setJournalError(null);
+    setSelectedJournalEntryId(null);
     setScreen("landing");
   }
 
@@ -247,7 +288,42 @@ export default function IslaMindApp() {
     await refreshMoodCheckins(session.user.id);
   }
 
+  function handleNewJournalEntry() {
+    setSelectedJournalEntryId(null);
+    navigate("journal-editor");
+  }
+
+  function handleOpenJournalEntry(id: string) {
+    setSelectedJournalEntryId(id);
+    navigate("journal-editor");
+  }
+
+  async function handleSaveJournalEntry(values: JournalEntryValues) {
+    if (!session) throw new Error("Please sign in before saving journal.");
+    setJournalError(null);
+
+    if (selectedJournalEntryId) {
+      await updateJournalEntry(selectedJournalEntryId, session.user.id, values);
+    } else {
+      const entry = await createJournalEntry(session.user.id, values);
+      setSelectedJournalEntryId(entry.id);
+    }
+
+    await refreshJournalEntries(session.user.id);
+    setScreen("journal-list");
+  }
+
+  async function handleDeleteJournalEntry(id: string) {
+    if (!session) throw new Error("Please sign in before deleting journal.");
+    setJournalError(null);
+    await deleteJournalEntry(id, session.user.id);
+    if (selectedJournalEntryId === id) setSelectedJournalEntryId(null);
+    await refreshJournalEntries(session.user.id);
+  }
+
   const showNav = APP_SCREENS.includes(screen);
+  const selectedJournalEntry =
+    journalEntries.find((entry) => entry.id === selectedJournalEntryId) ?? null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -286,6 +362,11 @@ export default function IslaMindApp() {
                   moodCheckins={moodCheckins}
                   moodLoading={moodLoading}
                   moodError={moodError}
+                  journalEntries={journalEntries}
+                  journalLoading={journalLoading}
+                  journalError={journalError}
+                  onNewJournal={handleNewJournalEntry}
+                  onOpenJournal={handleOpenJournalEntry}
                 />
               )}
               {screen === "mood-checkin" && (
@@ -304,8 +385,24 @@ export default function IslaMindApp() {
                   onDelete={handleDeleteMoodCheckin}
                 />
               )}
-              {screen === "journal-list" && <JournalListScreen navigate={navigate} />}
-              {screen === "journal-editor" && <JournalEditorScreen navigate={navigate} />}
+              {screen === "journal-list" && (
+                <JournalListScreen
+                  navigate={navigate}
+                  entries={journalEntries}
+                  loading={journalLoading}
+                  error={journalError}
+                  onCreate={handleNewJournalEntry}
+                  onOpen={handleOpenJournalEntry}
+                  onDelete={handleDeleteJournalEntry}
+                />
+              )}
+              {screen === "journal-editor" && (
+                <JournalEditorScreen
+                  navigate={navigate}
+                  entry={selectedJournalEntry}
+                  onSave={handleSaveJournalEntry}
+                />
+              )}
               {screen === "ai-reflection" && <AIReflectionScreen navigate={navigate} />}
               {screen === "cbt" && <CBTScreen navigate={navigate} />}
               {screen === "reflection-card" && <ReflectionCardScreen navigate={navigate} />}
