@@ -1,41 +1,41 @@
-# Huong Dan Su Dung IslaMind
+# Hướng Dẫn Sử Dụng IslaMind
 
-IslaMind la ung dung web rieng tu de tu phan chieu ban than, theo doi tam trang, viet nhat ky, nhan phan chieu AI nhe nhang, lam bai ghi suy nghi theo phong cach CBT, va boc the goi y viet nhat ky.
+IslaMind là ứng dụng web riêng tư để tự phản chiếu bản thân, theo dõi tâm trạng, viết nhật ký, nhận phản chiếu AI nhẹ nhàng, làm bài ghi suy nghĩ theo phong cách CBT, và bốc thẻ gợi ý viết nhật ký.
 
-IslaMind khong phai la lieu phap, chan doan, cham soc y te, hay ho tro khan cap. Neu ban co the dang gap nguy hiem hoac khong the giu an toan cho ban than, hay lien he dich vu khan cap dia phuong hoac mot nguoi dang tin cay ngay.
+IslaMind không phải là liệu pháp, chẩn đoán, chăm sóc y tế, hay hỗ trợ khẩn cấp. Nếu bạn có thể đang gặp nguy hiểm hoặc không thể giữ an toàn cho bản thân, hãy liên hệ dịch vụ khẩn cấp địa phương hoặc một người đáng tin cậy ngay.
 
-## Bat Dau
+## Bắt Đầu
 
-1. Tao tai khoan hoac dang nhap.
-2. Hoan thanh onboarding, hoac bo qua.
-3. Dung dashboard de mo Mood, Journal, Reflection, CBT, Profile, Pricing, va Safety.
+1. Tạo tài khoản hoặc đăng nhập.
+2. Hoàn thành onboarding, hoặc bỏ qua.
+3. Dùng dashboard để mở Mood, Journal, Reflection, CBT, Profile, Pricing, và Safety.
 
-## Tinh Nang Dang Hoat Dong
+## Tính Năng Đang Hoạt Động
 
-- **Mood check-ins:** luu diem tam trang, cam xuc, the gan, va ghi chu; xem lich su; sua hoac xoa muc da luu.
-- **Journal:** tao, sua, tim kiem, va xoa nhat ky rieng tu.
-- **AI reflection:** tao phan chieu co cau truc tu mot nhat ky da luu. Live AI hien dang tat; che do fallback/demo dang bat. Noi dung giong khung hoang se hien phan hoi an toan.
-- **CBT Thought Record:** hoan thanh va luu bai ghi suy nghi, kem diem tam trang sau khi dieu chinh suy nghi va ghi chu.
-- **Reflection Card:** boc mot goi y viet nhat ky tinh.
-- **Profile va pricing:** xem goi hien tai va dung nang cap Companion gia lap.
-- **Safety:** doc gioi han cua ung dung va nhung viec ung dung khong the lam.
+- **Mood check-ins:** lưu điểm tâm trạng, cảm xúc, thẻ gắn, và ghi chú; xem lịch sử; sửa hoặc xóa mục đã lưu.
+- **Journal:** tạo, sửa, tìm kiếm, và xóa nhật ký riêng tư.
+- **AI reflection:** tạo phản chiếu có cấu trúc từ một nhật ký đã lưu. Live AI hiện đang tắt; chế độ fallback/demo đang bật. Nội dung giống khủng hoảng sẽ hiện phản hồi an toàn.
+- **CBT Thought Record:** hoàn thành và lưu bài ghi suy nghĩ, kèm điểm tâm trạng sau khi điều chỉnh suy nghĩ và ghi chú.
+- **Reflection Card:** bốc một gợi ý viết nhật ký tĩnh.
+- **Profile và pricing:** xem gói hiện tại và dùng nâng cấp Companion giả lập.
+- **Safety:** đọc giới hạn của ứng dụng và những việc ứng dụng không thể làm.
 
-## Goi Va Gioi Han
+## Gói Và Giới Hạn
 
-- **Basic:** dung cac tinh nang chinh, gioi han 7 yeu cau AI moi ngay. Han muc dat lai luc `00:00 Asia/Bangkok`.
-- **Companion:** goi MVP gia lap, khong gioi han yeu cau AI sau khi nang cap gia lap.
+- **Basic:** dùng các tính năng chính, giới hạn 7 yêu cầu AI mỗi ngày. Hạn mức đặt lại lúc `00:00 Asia/Bangkok`.
+- **Companion:** gói MVP giả lập, không giới hạn yêu cầu AI sau khi nâng cấp giả lập.
 
-Hien tai khong co thanh toan that hoac xu ly hoa don that.
+Hiện tại không có thanh toán thật hoặc xử lý hóa đơn thật.
 
-## Dang Duoc Phat Trien
+## Đang Được Phát Triển
 
-- Phase 8: cai thien dashboard va lich su bang du lieu that.
-- Phase 9: hoan thien demo, kiem tra mobile, tai khoan rong, va noi dung an toan.
-- Live OpenAI calls: dang tat cho den khi prompt, an toan, chi phi, va bien moi truong duoc phe duyet.
+- Phase 8: cải thiện dashboard và lịch sử bằng dữ liệu thật.
+- Phase 9: hoàn thiện demo, kiểm tra mobile, tài khoản rỗng, và nội dung an toàn.
+- Live OpenAI calls: đang tắt cho đến khi prompt, an toàn, chi phí, và biến môi trường được phê duyệt.
 
-## Gioi Han Hien Tai
+## Giới Hạn Hiện Tại
 
-- Khong co ho tro lam sang that.
-- Khong co thanh toan that.
-- Chua co man hinh lich su CBT.
-- Dashboard va history van con mot so phan can hoan thien.
+- Không có hỗ trợ lâm sàng thật.
+- Không có thanh toán thật.
+- Chưa có màn hình lịch sử CBT.
+- Dashboard và history vẫn còn một số phần cần hoàn thiện.
