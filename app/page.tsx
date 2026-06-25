@@ -28,6 +28,11 @@ import {
   listJournalEntries,
   updateJournalEntry,
 } from "@/lib/journal";
+import { requestAIReflection } from "@/lib/ai/client";
+import type {
+  AIQuotaLimitResponse,
+  AIReflectionResponse,
+} from "@/lib/ai/reflection";
 import type { Screen } from "@/lib/islamind-types";
 import { BottomNav } from "@/components/islamind/BottomNav";
 import { LandingScreen } from "@/components/islamind/screens/LandingScreen";
@@ -86,6 +91,12 @@ export default function IslaMindApp() {
   const [selectedJournalEntryId, setSelectedJournalEntryId] = useState<string | null>(
     null
   );
+  const [reflectionResult, setReflectionResult] =
+    useState<AIReflectionResponse | null>(null);
+  const [reflectionQuotaError, setReflectionQuotaError] =
+    useState<AIQuotaLimitResponse | null>(null);
+  const [reflectionLoading, setReflectionLoading] = useState(false);
+  const [reflectionError, setReflectionError] = useState<string | null>(null);
 
   const refreshProfile = useCallback(async (userId: string) => {
     const nextProfile = await loadProfile(userId);
@@ -164,6 +175,9 @@ export default function IslaMindApp() {
         setJournalEntries([]);
         setJournalError(null);
         setSelectedJournalEntryId(null);
+        setReflectionResult(null);
+        setReflectionQuotaError(null);
+        setReflectionError(null);
         setScreen("landing");
         return;
       }
@@ -227,6 +241,9 @@ export default function IslaMindApp() {
     setMoodCheckins([]);
     setJournalEntries([]);
     setSelectedJournalEntryId(null);
+    setReflectionResult(null);
+    setReflectionQuotaError(null);
+    setReflectionError(null);
     setScreen("onboarding");
   }
 
@@ -257,6 +274,9 @@ export default function IslaMindApp() {
     setJournalEntries([]);
     setJournalError(null);
     setSelectedJournalEntryId(null);
+    setReflectionResult(null);
+    setReflectionQuotaError(null);
+    setReflectionError(null);
     setScreen("landing");
   }
 
@@ -302,15 +322,20 @@ export default function IslaMindApp() {
     if (!session) throw new Error("Please sign in before saving journal.");
     setJournalError(null);
 
+    let savedEntry: JournalEntry;
     if (selectedJournalEntryId) {
-      await updateJournalEntry(selectedJournalEntryId, session.user.id, values);
+      savedEntry = await updateJournalEntry(
+        selectedJournalEntryId,
+        session.user.id,
+        values
+      );
     } else {
-      const entry = await createJournalEntry(session.user.id, values);
-      setSelectedJournalEntryId(entry.id);
+      savedEntry = await createJournalEntry(session.user.id, values);
     }
 
+    setSelectedJournalEntryId(savedEntry.id);
     await refreshJournalEntries(session.user.id);
-    setScreen("journal-list");
+    return savedEntry;
   }
 
   async function handleDeleteJournalEntry(id: string) {
@@ -319,6 +344,31 @@ export default function IslaMindApp() {
     await deleteJournalEntry(id, session.user.id);
     if (selectedJournalEntryId === id) setSelectedJournalEntryId(null);
     await refreshJournalEntries(session.user.id);
+  }
+
+  async function handleGenerateReflection(entry: JournalEntry) {
+    if (!session) throw new Error("Please sign in before generating reflection.");
+
+    setSelectedJournalEntryId(entry.id);
+    setReflectionResult(null);
+    setReflectionQuotaError(null);
+    setReflectionError(null);
+    setReflectionLoading(true);
+    setScreen("ai-reflection");
+
+    try {
+      const response = await requestAIReflection({ journalEntryId: entry.id });
+      if ("reflection" in response) {
+        setReflectionResult(response);
+      } else {
+        setReflectionQuotaError(response);
+      }
+      await refreshProfile(session.user.id);
+    } catch (error) {
+      setReflectionError(getErrorMessage(error));
+    } finally {
+      setReflectionLoading(false);
+    }
   }
 
   const showNav = APP_SCREENS.includes(screen);
@@ -401,9 +451,19 @@ export default function IslaMindApp() {
                   navigate={navigate}
                   entry={selectedJournalEntry}
                   onSave={handleSaveJournalEntry}
+                  onGenerateReflection={handleGenerateReflection}
                 />
               )}
-              {screen === "ai-reflection" && <AIReflectionScreen navigate={navigate} />}
+              {screen === "ai-reflection" && (
+                <AIReflectionScreen
+                  navigate={navigate}
+                  entry={selectedJournalEntry}
+                  result={reflectionResult}
+                  quotaError={reflectionQuotaError}
+                  loading={reflectionLoading}
+                  error={reflectionError}
+                />
+              )}
               {screen === "cbt" && <CBTScreen navigate={navigate} />}
               {screen === "reflection-card" && <ReflectionCardScreen navigate={navigate} />}
               {screen === "profile" && session && (

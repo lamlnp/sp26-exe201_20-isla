@@ -14,13 +14,15 @@ const tags = ["Study stress", "Social", "Sleep", "Family", "Health", "Personal"]
 
 interface JournalEditorScreenProps extends NavigateProps {
   entry: JournalEntry | null;
-  onSave: (values: JournalEntryValues) => Promise<void>;
+  onSave: (values: JournalEntryValues) => Promise<JournalEntry>;
+  onGenerateReflection: (entry: JournalEntry) => Promise<void>;
 }
 
 export function JournalEditorScreen({
   navigate,
   entry,
   onSave,
+  onGenerateReflection,
 }: JournalEditorScreenProps) {
   const [title, setTitle] = useState("");
   const [text, setText] = useState("");
@@ -54,24 +56,68 @@ export function JournalEditorScreen({
     );
   }
 
-  async function saveEntry() {
+  function currentValues(): JournalEntryValues {
+    return {
+      title: title.trim() || null,
+      content: text,
+      mood_score: mood,
+      emotions: selectedEmotions,
+      tags: selectedTags,
+    };
+  }
+
+  function hasChanges() {
+    if (!entry) return true;
+
+    return (
+      (entry.title ?? "") !== (title.trim() || "") ||
+      entry.content !== text ||
+      (entry.mood_score ?? 6) !== mood ||
+      entry.emotions.join("\n") !== selectedEmotions.join("\n") ||
+      entry.tags.join("\n") !== selectedTags.join("\n")
+    );
+  }
+
+  async function saveCurrentEntry() {
     if (!text.trim()) {
       setError("Write something before saving.");
+      return null;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      return await onSave(currentValues());
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Unable to save entry.");
+      return null;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function saveEntry() {
+    const savedEntry = await saveCurrentEntry();
+    if (savedEntry) navigate("journal-list");
+  }
+
+  async function generateReflection() {
+    if (!text.trim()) {
+      setError("Write something before generating a reflection.");
       return;
     }
 
     setSaving(true);
     setError(null);
     try {
-      await onSave({
-        title: title.trim() || null,
-        content: text,
-        mood_score: mood,
-        emotions: selectedEmotions,
-        tags: selectedTags,
-      });
-    } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : "Unable to save entry.");
+      const savedEntry = !entry || hasChanges() ? await onSave(currentValues()) : entry;
+      await onGenerateReflection(savedEntry);
+    } catch (generateError) {
+      setError(
+        generateError instanceof Error
+          ? generateError.message
+          : "Unable to generate reflection."
+      );
     } finally {
       setSaving(false);
     }
@@ -232,12 +278,12 @@ export function JournalEditorScreen({
             writing. This is not clinical advice or a diagnosis.
           </p>
           <button
-            onClick={() => navigate("ai-reflection")}
+            onClick={generateReflection}
             disabled={saving}
             className="w-full h-12 rounded-2xl bg-primary text-white flex items-center justify-center gap-2 hover:bg-primary/90 transition-colors shadow-sm font-semibold text-[15px]"
           >
             <Sparkles size={16} aria-hidden="true" />
-            Generate reflection
+            {saving ? "Saving..." : "Generate reflection"}
           </button>
         </div>
       </div>

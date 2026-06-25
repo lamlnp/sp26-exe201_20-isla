@@ -1,81 +1,77 @@
 "use client";
 
-import { ArrowLeft, BookOpen, ClipboardList, AlertCircle, Copy } from "lucide-react";
+import type { ReactNode } from "react";
+import {
+  AlertCircle,
+  ArrowLeft,
+  BookOpen,
+  ClipboardList,
+  Copy,
+  Sparkles,
+} from "lucide-react";
 import type { NavigateProps } from "@/lib/islamind-types";
+import type { JournalEntry } from "@/lib/journal";
+import { formatJournalDate, getJournalTitle } from "@/lib/journal";
+import type {
+  AIQuotaLimitResponse,
+  AIReflectionResponse,
+} from "@/lib/ai/reflection";
 
-const reflectionSections = [
-  {
-    emoji: "💛",
-    title: "Emotional summary",
-    content: (
-      <p className="text-muted-foreground text-sm leading-[1.7]">
-        Your entry reflects a mix of{" "}
-        <strong className="text-foreground">anxiety and motivation</strong>. You
-        seem to be carrying a heavy load right now — the weight of upcoming exams
-        — while also showing real resourcefulness by actively looking for
-        strategies to cope.
-      </p>
-    ),
-  },
-  {
-    emoji: "🔍",
-    title: "Possible theme",
-    content: (
-      <>
-        <div className="px-3 py-2 rounded-xl bg-secondary mb-2">
-          <p className="text-primary text-[13px] font-semibold">
-            Pressure vs. self-compassion
-          </p>
-        </div>
-        <p className="text-muted-foreground text-sm leading-[1.7]">
-          It sounds like you&apos;re navigating a tension between wanting to
-          perform well and feeling the weight of too many demands at once. This is
-          a common experience during high-stakes periods.
-        </p>
-      </>
-    ),
-  },
-  {
-    emoji: "❓",
-    title: "Reflective question",
-    content: (
-      <p
-        className="text-foreground pl-3 border-l-2 border-primary text-[15px] leading-[1.7] italic"
-      >
-        &quot;If a close friend came to you with exactly the same situation, what
-        would you tell them? Would you speak to yourself the same way?&quot;
-      </p>
-    ),
-  },
-  {
-    emoji: "🌱",
-    title: "A small action",
-    content: (
-      <>
-        <p className="text-muted-foreground text-sm leading-[1.7] mb-3">
-          Based on what you shared, one small, manageable action for today might
-          be:
-        </p>
-        <div className="bg-background rounded-xl px-4 py-3 border border-border">
-          <p className="text-foreground text-sm leading-relaxed">
-            Spend 10 minutes writing out your three most important exam tasks in
-            order of priority. Not starting them — just listing them. Sometimes
-            naming the load makes it feel lighter.
-          </p>
-        </div>
-        <p className="text-muted-foreground mt-3 text-[12px] leading-relaxed">
-          This is a suggestion, not a prescription. Do only what feels right for
-          you.
-        </p>
-      </>
-    ),
-  },
-];
+interface AIReflectionScreenProps extends NavigateProps {
+  entry: JournalEntry | null;
+  result: AIReflectionResponse | null;
+  quotaError: AIQuotaLimitResponse | null;
+  loading: boolean;
+  error: string | null;
+}
 
-export function AIReflectionScreen({ navigate }: NavigateProps) {
+function ReflectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="bg-card rounded-2xl p-4 border border-border">
+      <div className="flex items-center gap-2 mb-2">
+        <Sparkles size={15} className="text-primary" aria-hidden="true" />
+        <p className="text-foreground text-[13px] font-bold">{title}</p>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+export function AIReflectionScreen({
+  navigate,
+  entry,
+  result,
+  quotaError,
+  loading,
+  error,
+}: AIReflectionScreenProps) {
+  const reflection = result?.reflection ?? null;
+  const blockedNormalReflection = Boolean(result?.blockedNormalReflection);
+
+  async function copyReflection() {
+    if (!reflection) return;
+
+    await navigator.clipboard?.writeText(
+      [
+        reflection.emotionalSummary,
+        reflection.possibleTheme,
+        reflection.reflectiveQuestion,
+        reflection.smallAction,
+        reflection.safetyNote,
+      ]
+        .filter(Boolean)
+        .join("\n\n")
+    );
+  }
+
   return (
     <main className="min-h-screen bg-background pb-8">
-      {/* Header */}
       <header className="flex items-center gap-3 px-5 pt-14 pb-2">
         <button
           onClick={() => navigate("journal-list")}
@@ -88,7 +84,9 @@ export function AIReflectionScreen({ navigate }: NavigateProps) {
           AI Reflection
         </h1>
         <button
-          className="ml-auto w-9 h-9 rounded-xl bg-card border border-border flex items-center justify-center"
+          onClick={copyReflection}
+          disabled={!reflection}
+          className="ml-auto w-9 h-9 rounded-xl bg-card border border-border flex items-center justify-center disabled:opacity-40"
           aria-label="Copy reflection"
         >
           <Copy size={15} className="text-muted-foreground" aria-hidden="true" />
@@ -96,22 +94,24 @@ export function AIReflectionScreen({ navigate }: NavigateProps) {
       </header>
 
       <div className="px-5">
-        {/* Context badge */}
         <div className="flex items-center gap-2 py-3 mb-2">
           <div className="w-7 h-7 rounded-lg bg-primary flex items-center justify-center flex-shrink-0">
-            <span style={{ fontSize: 14 }} aria-hidden="true">✨</span>
+            <Sparkles size={14} className="text-white" aria-hidden="true" />
           </div>
           <div>
             <p className="text-foreground text-[13px] font-semibold">
-              Reflection for &quot;Processing exam stress&quot;
+              {entry ? `Reflection for "${getJournalTitle(entry)}"` : "Reflection"}
             </p>
             <p className="text-muted-foreground text-[11px]">
-              Today, 9:14 AM · Mood 7/10
+              {entry
+                ? `${formatJournalDate(entry.created_at)}${
+                    entry.mood_score ? ` · Mood ${entry.mood_score}/10` : ""
+                  }`
+                : "Choose a saved journal entry first"}
             </p>
           </div>
         </div>
 
-        {/* Disclaimer */}
         <div
           className="bg-[#FFF8F0] border border-[#F2B880]/50 rounded-xl px-4 py-3 mb-5 flex items-start gap-2"
           role="note"
@@ -128,27 +128,107 @@ export function AIReflectionScreen({ navigate }: NavigateProps) {
           </p>
         </div>
 
-        {/* Reflection sections */}
-        <div className="space-y-3">
-          {reflectionSections.map((section) => (
-            <div
-              key={section.title}
-              className="bg-card rounded-2xl p-4 border border-border"
+        {loading && (
+          <div className="bg-card rounded-2xl p-5 border border-border text-center">
+            <Sparkles size={22} className="mx-auto mb-3 text-primary" />
+            <p className="text-foreground text-sm font-semibold">
+              Generating reflection...
+            </p>
+            <p className="text-muted-foreground text-xs mt-1">
+              This may use your Basic daily AI quota.
+            </p>
+          </div>
+        )}
+
+        {!loading && quotaError && (
+          <div className="bg-card rounded-2xl p-5 border border-border">
+            <p className="text-foreground text-sm font-bold mb-2">
+              Daily reflection limit reached
+            </p>
+            <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+              Basic includes {quotaError.dailyLimit} AI requests per day. Your
+              limit resets at {quotaError.resetsAt}.
+            </p>
+            <button
+              onClick={() => navigate("pricing")}
+              className="w-full h-12 rounded-2xl bg-primary text-white font-semibold text-sm"
             >
-              <div className="flex items-center gap-2 mb-2">
-                <span style={{ fontSize: 16 }} aria-hidden="true">
-                  {section.emoji}
-                </span>
-                <p className="text-foreground text-[13px] font-bold">
-                  {section.title}
+              View upgrade
+            </button>
+          </div>
+        )}
+
+        {!loading && error && (
+          <div className="bg-card rounded-2xl p-5 border border-destructive/20">
+            <p className="text-destructive text-sm font-semibold mb-2">
+              Unable to generate reflection
+            </p>
+            <p className="text-muted-foreground text-sm leading-relaxed">{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && !quotaError && !reflection && (
+          <div className="bg-card rounded-2xl p-5 border border-border">
+            <p className="text-foreground text-sm font-semibold mb-2">
+              No reflection selected
+            </p>
+            <p className="text-muted-foreground text-sm leading-relaxed">
+              Open a saved journal entry and choose Generate reflection.
+            </p>
+          </div>
+        )}
+
+        {!loading && reflection && (
+          <>
+            {blockedNormalReflection && (
+              <div className="bg-destructive/10 border border-destructive/20 rounded-xl px-4 py-3 mb-5">
+                <p className="text-destructive text-[12px] leading-relaxed">
+                  Normal AI reflection was paused because this entry may need
+                  support beyond the app. No quota was used.
                 </p>
               </div>
-              {section.content}
-            </div>
-          ))}
-        </div>
+            )}
 
-        {/* Actions */}
+            <div className="space-y-3">
+              <ReflectionCard title="Emotional summary">
+                <p className="text-muted-foreground text-sm leading-[1.7]">
+                  {reflection.emotionalSummary}
+                </p>
+              </ReflectionCard>
+
+              <ReflectionCard title="Possible theme">
+                <div className="px-3 py-2 rounded-xl bg-secondary mb-2">
+                  <p className="text-primary text-[13px] font-semibold">
+                    {reflection.possibleTheme}
+                  </p>
+                </div>
+              </ReflectionCard>
+
+              <ReflectionCard title="Reflective question">
+                <p className="text-foreground pl-3 border-l-2 border-primary text-[15px] leading-[1.7] italic">
+                  {reflection.reflectiveQuestion}
+                </p>
+              </ReflectionCard>
+
+              <ReflectionCard title="A small action">
+                <div className="bg-background rounded-xl px-4 py-3 border border-border">
+                  <p className="text-foreground text-sm leading-relaxed">
+                    {reflection.smallAction}
+                  </p>
+                </div>
+              </ReflectionCard>
+
+              {reflection.safetyNote && (
+                <ReflectionCard title="Safety note">
+                  <p className="text-muted-foreground text-sm leading-[1.7]">
+                    {reflection.safetyNote}
+                  </p>
+                </ReflectionCard>
+              )}
+            </div>
+          </>
+        )}
+
         <div className="flex gap-3 mt-6">
           <button
             onClick={() => navigate("journal-editor")}
@@ -166,7 +246,6 @@ export function AIReflectionScreen({ navigate }: NavigateProps) {
           </button>
         </div>
 
-        {/* Safety footer */}
         <div className="mt-6 px-4 py-3 rounded-xl bg-card border border-border">
           <p className="text-muted-foreground text-[11px] leading-relaxed text-center">
             If you are in distress, please reach out to a trusted person or
